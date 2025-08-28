@@ -6,6 +6,17 @@ if (typeof window !== 'undefined') {
     window.google = window.google || {};
     window.google.accounts = window.google.accounts || {};
     window.google.accounts.id = window.google.accounts.id || {};
+
+    // Ensure the id object has the required methods
+    if (!window.google.accounts.id.initialize) {
+        window.google.accounts.id.initialize = () => { };
+    }
+    if (!window.google.accounts.id.renderButton) {
+        window.google.accounts.id.renderButton = () => { };
+    }
+    if (!window.google.accounts.id.prompt) {
+        window.google.accounts.id.prompt = () => { };
+    }
 }
 
 const Login = () => {
@@ -20,9 +31,15 @@ const Login = () => {
     });
     const [errors, setErrors] = useState({});
     const [success, setSuccess] = useState('');
+    const [googleLoaded, setGoogleLoaded] = useState(false);
+    const [googleError, setGoogleError] = useState('');
+
+
 
     // Google OAuth client ID - you'll need to set this up in your Google Cloud Console
     const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || 'your-google-client-id.apps.googleusercontent.com';
+
+
 
     const handleGoogleCredentialResponse = useCallback(async (response) => {
         setErrors({});
@@ -153,9 +170,39 @@ const Login = () => {
 
     // Initialize Google Identity Services
     useEffect(() => {
-        // Check if Google Identity Services is loaded
+        let retryCount = 0;
+        const maxRetries = 50; // 5 seconds max wait
+
+        // Check if Google Identity Services is fully loaded
+        const isGoogleLoaded = () => {
+            return window.google &&
+                window.google.accounts &&
+                window.google.accounts.id &&
+                typeof window.google.accounts.id.initialize === 'function';
+        };
+
+
+
+        // Initialize Google Sign-In with isolated DOM management
         const initializeGoogleSignIn = () => {
-            if (window.google && window.google.accounts) {
+            try {
+                if (!isGoogleLoaded()) {
+                    console.warn('⚠️ Google Identity Services not ready yet');
+                    return;
+                }
+
+                const buttonId = `google-signin-button-${isLogin ? 'login' : 'register'}`;
+                const googleButton = document.getElementById(buttonId);
+
+                if (!googleButton) {
+                    console.warn('⚠️ Google button container not found');
+                    return;
+                }
+
+                // Clear loading content
+                googleButton.innerHTML = '';
+
+                // Initialize Google with error handling
                 window.google.accounts.id.initialize({
                     client_id: GOOGLE_CLIENT_ID,
                     callback: handleGoogleCredentialResponse,
@@ -163,35 +210,60 @@ const Login = () => {
                     cancel_on_tap_outside: true,
                 });
 
-                // Render the Google Sign-In button
-                const googleButton = document.getElementById('google-signin-button');
-                if (googleButton) {
-                    window.google.accounts.id.renderButton(googleButton, {
-                        theme: 'outline',
-                        size: 'large',
-                        text: isLogin ? 'continue_with' : 'signup_with',
-                        shape: 'rectangular',
-                        width: '100%'
-                    });
-                }
+                // Render button
+                window.google.accounts.id.renderButton(googleButton, {
+                    theme: 'outline',
+                    size: 'large',
+                    text: isLogin ? 'continue_with' : 'signup_with',
+                    shape: 'rectangular',
+                    width: '100%'
+                });
+
+                setGoogleLoaded(true);
+                setGoogleError('');
+                console.log('✅ Google Identity Services initialized successfully');
+
+            } catch (error) {
+                console.error('❌ Failed to initialize Google Identity Services:', error);
+                setGoogleError('Google Sign-in is currently unavailable. Please use email and password instead.');
+                setGoogleLoaded(false);
             }
         };
 
-        // If script is already loaded, initialize immediately
-        if (window.google && window.google.accounts) {
-            initializeGoogleSignIn();
-        } else {
-            // Wait for the script to load
-            const checkGoogleLoaded = setInterval(() => {
-                if (window.google && window.google.accounts) {
-                    clearInterval(checkGoogleLoaded);
+        // Wait for Google script to fully load
+        const waitForGoogle = () => {
+            if (isGoogleLoaded()) {
+                // Check if button container exists and initialize
+                const buttonId = `google-signin-button-${isLogin ? 'login' : 'register'}`;
+                const googleButton = document.getElementById(buttonId);
+
+                if (googleButton && !googleLoaded) {
                     initializeGoogleSignIn();
                 }
-            }, 100);
+                return;
+            }
 
-            // Clean up interval after 10 seconds
-            setTimeout(() => clearInterval(checkGoogleLoaded), 10000);
-        }
+            retryCount++;
+            if (retryCount >= maxRetries) {
+                console.error('❌ Google Identity Services failed to load after 5 seconds');
+                setGoogleError('Google Sign-in failed to load. Please use email and password instead.');
+                setGoogleLoaded(false);
+                return;
+            }
+
+            // Wait 100ms and try again
+            setTimeout(waitForGoogle, 100);
+        };
+
+        // Start waiting for Google Identity Services
+        waitForGoogle();
+
+        // Cleanup function
+        return () => {
+            retryCount = maxRetries; // Stop retries if component unmounts
+            setGoogleLoaded(false);
+            setGoogleError('');
+        };
     }, [isLogin, GOOGLE_CLIENT_ID, handleGoogleCredentialResponse]);
 
     const toggleMode = () => {
@@ -199,6 +271,10 @@ const Login = () => {
         setErrors({});
         setSuccess('');
         clearError();
+
+        // Reset Google state for new mode
+        setGoogleLoaded(false);
+
         setFormData({
             email: '',
             password: '',
@@ -362,6 +438,7 @@ const Login = () => {
                 </div>
 
                 {(errors.general || error) && <div style={styles.error}>{errors.general || error}</div>}
+                {googleError && <div style={{ ...styles.error, background: '#fff3cd', color: '#856404', borderColor: '#ffeaa7' }}>{googleError}</div>}
                 {success && <div style={styles.success}>{success}</div>}
 
                 <form onSubmit={handleSubmit} style={styles.form}>
@@ -479,21 +556,47 @@ const Login = () => {
                     <div style={styles.dividerLine}></div>
                 </div>
 
-                <div
-                    id="google-signin-button"
-                    style={{
-                        ...styles.googleButton,
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        minHeight: '40px',
-                        opacity: loading ? 0.6 : 1,
-                        cursor: loading ? 'not-allowed' : 'pointer',
-                        pointerEvents: loading ? 'none' : 'auto'
-                    }}
-                >
-                    {/* Google Identity Services will render the button here */}
-                </div>
+                {!googleError && (
+                    <div
+                        style={{
+                            ...styles.googleButton,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            minHeight: '40px',
+                            opacity: loading ? 0.6 : 1,
+                            cursor: loading ? 'not-allowed' : 'pointer',
+                            pointerEvents: loading ? 'none' : 'auto'
+                        }}
+                        ref={(el) => {
+                            if (el && !el.hasAttribute('data-google-init')) {
+                                el.setAttribute('data-google-init', 'true');
+                                const buttonId = `google-signin-button-${isLogin ? 'login' : 'register'}`;
+
+                                // Create a completely isolated container
+                                const googleContainer = document.createElement('div');
+                                googleContainer.id = buttonId;
+                                googleContainer.style.width = '100%';
+                                googleContainer.style.display = 'flex';
+                                googleContainer.style.justifyContent = 'center';
+                                googleContainer.style.alignItems = 'center';
+                                googleContainer.style.minHeight = '40px';
+
+                                // Add loading indicator
+                                if (!googleLoaded) {
+                                    googleContainer.innerHTML = '<div style="display: flex; align-items: center; gap: 8px;"><span>🔄</span><span>Loading Google Sign-in...</span></div>';
+                                }
+
+                                // Replace React-managed content with isolated container
+                                el.innerHTML = '';
+                                el.appendChild(googleContainer);
+
+                                // Mark as initialized to prevent re-initialization
+                                el.setAttribute('data-google-ready', 'true');
+                            }
+                        }}
+                    />
+                )}
 
                 <div style={styles.toggle}>
                     {isLogin ? "Don't have an account? " : "Already have an account? "}
