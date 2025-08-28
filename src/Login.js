@@ -169,6 +169,7 @@ const Login = () => {
     };
 
     // Initialize Google Identity Services
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         let retryCount = 0;
         const maxRetries = 50; // 5 seconds max wait
