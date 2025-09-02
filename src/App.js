@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
 import useUsage from './hooks/useUsage';
 import { generatePDFReport, generateReport } from './utils/generate-report';
+import { analyzeData } from './utils/analyze-data';
 
 // PayLens Analyzer with Authentication
 const PayLensAnalyzer = () => {
@@ -14,6 +15,7 @@ const PayLensAnalyzer = () => {
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview'); // New state for tabs
 
   // File handling functions - must be called before any conditional returns
   const handleDragOver = useCallback((e) => {
@@ -47,7 +49,7 @@ const PayLensAnalyzer = () => {
       skipEmptyLines: true,
       complete: function (parseResults) {
         setTimeout(async () => {
-          await analyzeData(parseResults.data);
+          await analyzeData(parseResults.data, "generic", setResults, setLoading, setError, incrementUsage);
         }, 2000);
       },
       error: function (parseError) {
@@ -64,10 +66,7 @@ const PayLensAnalyzer = () => {
     if (files.length > 0) {
       handleFile(files[0]);
     }
-    // eslint-disable-next-line
   }, []);
-
-
 
   // Show loading spinner while checking authentication
   if (authLoading) {
@@ -114,108 +113,157 @@ const PayLensAnalyzer = () => {
     return <Login />;
   }
 
-  const analyzeData = async (data, processor = "generic") => {
-    // Increment usage count before analysis
-    const usageResult = await incrementUsage();
-    if (!usageResult.success) {
-      setLoading(false);
-      setError('Failed to process usage. Please try again or contact support.');
-      return;
-    }
-
-    // Define fee structures per processor (approx, update with actual values)
-    const feeModels = {
-      payfast: { percentage: 0.029, fixed: 1.50 },
-      peach: { percentage: 0.029, fixed: 2.00 },
-      ozow: { percentage: 0.023, fixed: 0.00 },
-      yoco: { percentage: 0.0295, fixed: 0.00 },
-      stitch: { percentage: 0.019, fixed: 0.00 },
-      snapscan: { percentage: 0.0295, fixed: 0.00 },
-      paygate: { percentage: 0.025, fixed: 2.00 },
-      generic: { percentage: 0.029, fixed: 1.50 }
-    };
-
-    const model = feeModels[processor.toLowerCase()] || feeModels["generic"];
-
-    const analysis = {
-      processor,
-      totalTransactions: data.length,
-      totalFees: 0,
-      failedTransactions: 0,
-      failedCosts: 0,
-      savings: 0,
-      recommendations: []
-    };
-
-    data.forEach(row => {
-      const amount = parseFloat(
-        row.amount || row.Amount || row.gross || row.Gross || 0
-      );
-
-      if (amount > 0) {
-        const estimatedFee = (amount * model.percentage) + model.fixed;
-        analysis.totalFees += estimatedFee;
-      }
-
-      const status = (
-        row.status || row.Status || row.payment_status || ""
-      ).toLowerCase();
-
-      if (
-        status.includes("failed") ||
-        status.includes("cancelled") ||
-        status.includes("declined")
-      ) {
-        analysis.failedTransactions++;
-        analysis.failedCosts += model.fixed; // assume only fixed cost lost
-      }
-    });
-
-    // Recommendations
-    if (analysis.failedTransactions > analysis.totalTransactions * 0.05) {
-      analysis.recommendations.push(
-        "High failure rate detected. Consider improving validation and retries to reduce failed costs."
-      );
-      analysis.savings += analysis.failedCosts * 0.5;
-    }
-
-    if (analysis.totalTransactions > 100) {
-      analysis.recommendations.push(
-        `You may qualify for volume discounts. Contact ${processor.charAt(0).toUpperCase() + processor.slice(1)} to negotiate lower rates.`
-      );
-      analysis.savings += analysis.totalFees * 0.1;
-    }
-
-    if (analysis.totalFees > 1000) {
-      analysis.recommendations.push(
-        "Consider diversifying payment methods. Comparing Ozow, Stitch, Yoco, and SnapScan could reduce costs at scale."
-      );
-      analysis.savings += analysis.totalFees * 0.15;
-    } else {
-      analysis.recommendations.push(
-        "Monitor your payment patterns monthly. Small optimizations can lead to significant savings over time."
-      );
-      analysis.savings += Math.min(50, analysis.totalFees * 0.05);
-    }
-
-    if (analysis.totalTransactions > 0) {
-      analysis.recommendations.push(
-        "Enable automatic retry logic for failed payments to recover potential lost revenue."
-      );
-    }
-
-    setResults(analysis);
-    setLoading(false);
-  };
-
   const resetAnalysis = () => {
     setResults(null);
     setError('');
+    setActiveTab('overview');
     const fileInput = document.getElementById('fileInput');
     if (fileInput) fileInput.value = '';
   };
 
-
+  // Enhanced styles for new components
+  const enhancedResultStyles = {
+    tabContainer: {
+      display: 'flex',
+      borderBottom: '2px solid #e5e7eb',
+      marginBottom: '24px',
+      gap: '8px'
+    },
+    tab: {
+      padding: '12px 20px',
+      background: 'transparent',
+      border: 'none',
+      borderBottom: '2px solid transparent',
+      cursor: 'pointer',
+      fontSize: '14px',
+      fontWeight: '500',
+      color: '#6b7280',
+      transition: 'all 0.2s ease'
+    },
+    activeTab: {
+      color: '#2563eb',
+      borderBottomColor: '#2563eb'
+    },
+    scoreCard: {
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      color: 'white',
+      borderRadius: '12px',
+      padding: '24px',
+      textAlign: 'center',
+      marginBottom: '24px'
+    },
+    scoreGrade: {
+      fontSize: '48px',
+      fontWeight: 'bold',
+      marginBottom: '8px'
+    },
+    scoreText: {
+      fontSize: '18px',
+      opacity: 0.9
+    },
+    breakdownGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: '16px',
+      marginBottom: '24px'
+    },
+    breakdownCard: {
+      background: '#f8fafc',
+      border: '1px solid #e2e8f0',
+      borderRadius: '8px',
+      padding: '16px'
+    },
+    breakdownTitle: {
+      fontSize: '12px',
+      fontWeight: '600',
+      color: '#64748b',
+      marginBottom: '8px',
+      textTransform: 'uppercase'
+    },
+    breakdownValue: {
+      fontSize: '18px',
+      fontWeight: 'bold',
+      color: '#1e293b',
+      marginBottom: '4px'
+    },
+    breakdownSubtext: {
+      fontSize: '12px',
+      color: '#64748b'
+    },
+    comparisonTable: {
+      width: '100%',
+      borderCollapse: 'collapse',
+      marginBottom: '24px'
+    },
+    tableHeader: {
+      background: '#f1f5f9',
+      fontWeight: '600',
+      padding: '12px',
+      textAlign: 'left',
+      borderBottom: '2px solid #e2e8f0'
+    },
+    tableCell: {
+      padding: '12px',
+      borderBottom: '1px solid #e2e8f0'
+    },
+    savingsPositive: {
+      color: '#059669',
+      fontWeight: '600'
+    },
+    savingsNegative: {
+      color: '#dc2626',
+      fontWeight: '600'
+    },
+    priorityBadge: {
+      padding: '4px 8px',
+      borderRadius: '12px',
+      fontSize: '11px',
+      fontWeight: '600',
+      textTransform: 'uppercase'
+    },
+    priorityHigh: {
+      background: '#fef2f2',
+      color: '#dc2626'
+    },
+    priorityMedium: {
+      background: '#fffbeb',
+      color: '#d97706'
+    },
+    priorityLow: {
+      background: '#f0fdf4',
+      color: '#059669'
+    },
+    nextStepItem: {
+      background: 'white',
+      border: '1px solid #e5e7eb',
+      borderRadius: '8px',
+      padding: '16px',
+      marginBottom: '12px'
+    },
+    nextStepHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '8px'
+    },
+    nextStepAction: {
+      fontSize: '14px',
+      fontWeight: '600',
+      color: '#1f2937'
+    },
+    nextStepTimeframe: {
+      fontSize: '12px',
+      color: '#6b7280',
+      background: '#f3f4f6',
+      padding: '2px 8px',
+      borderRadius: '12px'
+    },
+    nextStepImpact: {
+      fontSize: '13px',
+      color: '#059669',
+      fontWeight: '500'
+    }
+  };
 
   return (
     <div style={styles.container}>
@@ -267,8 +315,6 @@ const PayLensAnalyzer = () => {
           </p>
         </div>
 
-
-
         <div style={styles.card}>
           {!results && !loading && (
             <div>
@@ -311,64 +357,266 @@ const PayLensAnalyzer = () => {
 
           {results && (
             <div>
-              <h2 style={styles.resultsTitle}>
-                🔍 Analysis Results
-              </h2>
-
-              <div style={styles.metricsGrid}>
-                <div style={{ ...styles.metric, ...styles.metricDefault }}>
-                  <h3 style={styles.metricTitle}>Total Transactions Analyzed</h3>
-                  <div style={{ ...styles.metricValue, ...styles.metricValueDefault }}>
-                    {results.totalTransactions}
+              {/* Market Position Score */}
+              {results.marketPosition && (
+                <div style={enhancedResultStyles.scoreCard}>
+                  <div style={enhancedResultStyles.scoreGrade}>{results.marketPosition.grade}</div>
+                  <div style={enhancedResultStyles.scoreText}>
+                    Payment Optimization Score: {results.marketPosition.overallScore}/100
                   </div>
                 </div>
+              )}
 
-                <div style={{ ...styles.metric, ...styles.metricDefault }}>
-                  <h3 style={styles.metricTitle}>Total Fees Paid</h3>
-                  <div style={{ ...styles.metricValue, ...styles.metricValueDefault }}>
-                    R {results.totalFees.toFixed(2)}
-                  </div>
-                </div>
-
-                <div style={{ ...styles.metric, ...styles.metricSuccess }}>
-                  <h3 style={styles.metricTitle}>Potential Monthly Savings</h3>
-                  <div style={{ ...styles.metricValue, ...styles.metricValueSuccess }}>
-                    R {results.savings.toFixed(2)}
-                  </div>
-                </div>
-
-                <div style={{ ...styles.metric, ...styles.metricError }}>
-                  <h3 style={styles.metricTitle}>Failed Transaction Costs</h3>
-                  <div style={{ ...styles.metricValue, ...styles.metricValueError }}>
-                    R {results.failedCosts.toFixed(2)}
-                  </div>
-                </div>
+              {/* Tab Navigation */}
+              <div style={enhancedResultStyles.tabContainer}>
+                {['overview', 'breakdown', 'comparison', 'recommendations', 'next-steps'].map(tab => (
+                  <button
+                    key={tab}
+                    style={{
+                      ...enhancedResultStyles.tab,
+                      ...(activeTab === tab ? enhancedResultStyles.activeTab : {})
+                    }}
+                    onClick={() => setActiveTab(tab)}
+                  >
+                    {tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ')}
+                  </button>
+                ))}
               </div>
 
-              <div style={styles.recommendations}>
-                <h3 style={styles.recommendationsTitle}>
-                  💡 Recommendations
-                </h3>
+              {/* Overview Tab */}
+              {activeTab === 'overview' && (
                 <div>
-                  {results.recommendations.map((rec, index) => (
-                    <div key={index} style={styles.recommendation}>
-                      <span style={styles.recommendationIcon}>💡</span>
-                      {rec}
+                  <h2 style={styles.resultsTitle}>🔍 Analysis Overview</h2>
+
+                  <div style={styles.metricsGrid}>
+                    <div style={{ ...styles.metric, ...styles.metricDefault }}>
+                      <h3 style={styles.metricTitle}>Total Transactions</h3>
+                      <div style={{ ...styles.metricValue, ...styles.metricValueDefault }}>
+                        {results.totalTransactions?.toLocaleString() || 0}
+                      </div>
+                    </div>
+
+                    <div style={{ ...styles.metric, ...styles.metricDefault }}>
+                      <h3 style={styles.metricTitle}>Total Volume</h3>
+                      <div style={{ ...styles.metricValue, ...styles.metricValueDefault }}>
+                        R {results.totalVolume?.toLocaleString() || 0}
+                      </div>
+                    </div>
+
+                    <div style={{ ...styles.metric, ...styles.metricDefault }}>
+                      <h3 style={styles.metricTitle}>Total Fees Paid</h3>
+                      <div style={{ ...styles.metricValue, ...styles.metricValueDefault }}>
+                        R {results.totalFees?.toFixed(2) || 0}
+                      </div>
+                    </div>
+
+                    <div style={{ ...styles.metric, ...styles.metricDefault }}>
+                      <h3 style={styles.metricTitle}>Effective Rate</h3>
+                      <div style={{ ...styles.metricValue, ...styles.metricValueDefault }}>
+                        {results.effectiveRate?.toFixed(2) || 0}%
+                      </div>
+                    </div>
+
+                    <div style={{ ...styles.metric, ...styles.metricSuccess }}>
+                      <h3 style={styles.metricTitle}>Monthly Savings</h3>
+                      <div style={{ ...styles.metricValue, ...styles.metricValueSuccess }}>
+                        R {results.monthlySavings?.toFixed(2) || 0}
+                      </div>
+                    </div>
+
+                    <div style={{ ...styles.metric, ...styles.metricSuccess }}>
+                      <h3 style={styles.metricTitle}>Annual Savings</h3>
+                      <div style={{ ...styles.metricValue, ...styles.metricValueSuccess }}>
+                        R {results.annualSavings?.toFixed(2) || 0}
+                      </div>
+                    </div>
+
+                    <div style={{ ...styles.metric, ...styles.metricError }}>
+                      <h3 style={styles.metricTitle}>Failed Transactions</h3>
+                      <div style={{ ...styles.metricValue, ...styles.metricValueError }}>
+                        {results.failedTransactions || 0} ({results.failureRate?.toFixed(1) || 0}%)
+                      </div>
+                    </div>
+
+                    <div style={{ ...styles.metric, ...styles.metricDefault }}>
+                      <h3 style={styles.metricTitle}>Average Transaction</h3>
+                      <div style={{ ...styles.metricValue, ...styles.metricValueDefault }}>
+                        R {results.averageTransaction?.toFixed(0) || 0}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Breakdown Tab */}
+              {activeTab === 'breakdown' && results.transactionBreakdown && (
+                <div>
+                  <h2 style={styles.resultsTitle}>📊 Transaction Breakdown</h2>
+
+                  <div style={enhancedResultStyles.breakdownGrid}>
+                    <div style={enhancedResultStyles.breakdownCard}>
+                      <div style={enhancedResultStyles.breakdownTitle}>Small Transactions (&lt; R100)</div>
+                      <div style={enhancedResultStyles.breakdownValue}>
+                        {results.transactionBreakdown.small.count}
+                      </div>
+                      <div style={enhancedResultStyles.breakdownSubtext}>
+                        R {results.transactionBreakdown.small.volume.toFixed(2)} volume
+                        <br />R {results.transactionBreakdown.small.fees.toFixed(2)} fees
+                        <br />{((results.transactionBreakdown.small.fees / results.transactionBreakdown.small.volume) * 100).toFixed(2)}% effective rate
+                      </div>
+                    </div>
+
+                    <div style={enhancedResultStyles.breakdownCard}>
+                      <div style={enhancedResultStyles.breakdownTitle}>Medium Transactions (R100-R1000)</div>
+                      <div style={enhancedResultStyles.breakdownValue}>
+                        {results.transactionBreakdown.medium.count}
+                      </div>
+                      <div style={enhancedResultStyles.breakdownSubtext}>
+                        R {results.transactionBreakdown.medium.volume.toFixed(2)} volume
+                        <br />R {results.transactionBreakdown.medium.fees.toFixed(2)} fees
+                        <br />{((results.transactionBreakdown.medium.fees / results.transactionBreakdown.medium.volume) * 100).toFixed(2)}% effective rate
+                      </div>
+                    </div>
+
+                    <div style={enhancedResultStyles.breakdownCard}>
+                      <div style={enhancedResultStyles.breakdownTitle}>Large Transactions (&gt; R1000)</div>
+                      <div style={enhancedResultStyles.breakdownValue}>
+                        {results.transactionBreakdown.large.count}
+                      </div>
+                      <div style={enhancedResultStyles.breakdownSubtext}>
+                        R {results.transactionBreakdown.large.volume.toFixed(2)} volume
+                        <br />R {results.transactionBreakdown.large.fees.toFixed(2)} fees
+                        <br />{((results.transactionBreakdown.large.fees / results.transactionBreakdown.large.volume) * 100).toFixed(2)}% effective rate
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Risk Factors */}
+                  {results.riskFactors && results.riskFactors.length > 0 && (
+                    <div>
+                      <h3 style={styles.recommendationsTitle}>⚠️ Risk Factors</h3>
+                      <div>
+                        {results.riskFactors.map((risk, index) => (
+                          <div key={index} style={{ ...styles.recommendation, background: '#fef2f2', border: '1px solid #fecaca' }}>
+                            <span style={styles.recommendationIcon}>⚠️</span>
+                            {risk}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Comparison Tab */}
+              {activeTab === 'comparison' && results.benchmarkComparison && (
+                <div>
+                  <h2 style={styles.resultsTitle}>🏆 Processor Comparison</h2>
+
+                  <table style={enhancedResultStyles.comparisonTable}>
+                    <thead>
+                      <tr>
+                        <th style={enhancedResultStyles.tableHeader}>Payment Processor</th>
+                        <th style={enhancedResultStyles.tableHeader}>Estimated Fees</th>
+                        <th style={enhancedResultStyles.tableHeader}>vs Current</th>
+                        <th style={enhancedResultStyles.tableHeader}>Annual Impact</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={{ background: '#e0f2fe' }}>
+                        <td style={enhancedResultStyles.tableCell}><strong>{results.processor} (Current)</strong></td>
+                        <td style={enhancedResultStyles.tableCell}><strong>R {results.totalFees.toFixed(2)}</strong></td>
+                        <td style={enhancedResultStyles.tableCell}>-</td>
+                        <td style={enhancedResultStyles.tableCell}>-</td>
+                      </tr>
+                      {Object.entries(results.benchmarkComparison).map(([processor, comparison]) => (
+                        <tr key={processor}>
+                          <td style={enhancedResultStyles.tableCell}>{processor}</td>
+                          <td style={enhancedResultStyles.tableCell}>R {comparison.totalFees.toFixed(2)}</td>
+                          <td style={{
+                            ...enhancedResultStyles.tableCell,
+                            ...(comparison.savings > 0 ? enhancedResultStyles.savingsPositive : enhancedResultStyles.savingsNegative)
+                          }}>
+                            {comparison.savings > 0 ? '+' : ''}R {comparison.savings.toFixed(2)}
+                          </td>
+                          <td style={{
+                            ...enhancedResultStyles.tableCell,
+                            ...(comparison.savings > 0 ? enhancedResultStyles.savingsPositive : enhancedResultStyles.savingsNegative)
+                          }}>
+                            {comparison.savings > 0 ? '+' : ''}R {(comparison.savings * 12).toFixed(0)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Recommendations Tab */}
+              {activeTab === 'recommendations' && (
+                <div>
+                  <h2 style={styles.resultsTitle}>💡 Recommendations</h2>
+
+                  <div>
+                    {(results.recommendations || []).map((rec, index) => (
+                      <div key={index} style={styles.recommendation}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                          <span style={styles.recommendationIcon}>💡</span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ marginBottom: '8px' }}>
+                              {typeof rec === 'object' ? rec.text : rec}
+                            </div>
+                            {typeof rec === 'object' && rec.priority && (
+                              <span style={{
+                                ...enhancedResultStyles.priorityBadge,
+                                ...(rec.priority === 'high' ? enhancedResultStyles.priorityHigh :
+                                  rec.priority === 'medium' ? enhancedResultStyles.priorityMedium :
+                                    enhancedResultStyles.priorityLow)
+                              }}>
+                                {rec.priority} priority
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Optimization Opportunities */}
+                  {results.optimizationOpportunities && results.optimizationOpportunities.length > 0 && (
+                    <div style={{ marginTop: '24px' }}>
+                      <h3 style={styles.recommendationsTitle}>🚀 Optimization Opportunities</h3>
+                      <div>
+                        {results.optimizationOpportunities.map((opportunity, index) => (
+                          <div key={index} style={{ ...styles.recommendation, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                            <span style={styles.recommendationIcon}>🚀</span>
+                            {opportunity}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Next Steps Tab */}
+              {activeTab === 'next-steps' && results.nextSteps && (
+                <div>
+                  <h2 style={styles.resultsTitle}>📋 Next Steps</h2>
+
+                  {results.nextSteps.map((step, index) => (
+                    <div key={index} style={enhancedResultStyles.nextStepItem}>
+                      <div style={enhancedResultStyles.nextStepHeader}>
+                        <div style={enhancedResultStyles.nextStepAction}>{step.action}</div>
+                        <div style={enhancedResultStyles.nextStepTimeframe}>{step.timeframe}</div>
+                      </div>
+                      <div style={enhancedResultStyles.nextStepImpact}>{step.impact}</div>
                     </div>
                   ))}
                 </div>
-              </div>
+              )}
 
               <div style={styles.buttonContainer} className="button-container">
-                <button
-                  onClick={() => generateReport(results)}
-                  style={styles.button}
-                  onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
-                  onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
-                >
-                  📄 Download Report (TXT)
-                </button>
-
                 <button
                   onClick={() => generatePDFReport(results)}
                   style={styles.button}
