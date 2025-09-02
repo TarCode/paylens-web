@@ -199,7 +199,7 @@ const generateEnhancedRecommendations = (analysis, currentModel, data) => {
     }
 
     // 2. Transaction Size Optimization
-    const { small, medium, large } = analysis.transactionBreakdown;
+    const { small, large } = analysis.transactionBreakdown;
 
     if (small.count > analysis.totalTransactions * 0.5) {
         const smallTxRate = (small.fees / small.volume) * 100;
