@@ -4,7 +4,7 @@ import { styles, enhancedStyles } from './styles';
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
 import useUsage from './hooks/useUsage';
-import { generatePDFReport, generateReport } from './utils/generate-report';
+import { generatePDFReport } from './utils/generate-report';
 import { analyzeData } from './utils/analyze-data';
 
 // PayLens Analyzer with Authentication
@@ -21,11 +21,13 @@ const PayLensAnalyzer = () => {
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
     setDragOver(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDragLeave = useCallback((e) => {
     e.preventDefault();
     setDragOver(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleFileInput = (e) => {
@@ -66,6 +68,7 @@ const PayLensAnalyzer = () => {
     if (files.length > 0) {
       handleFile(files[0]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Show loading spinner while checking authentication
