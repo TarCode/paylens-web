@@ -130,7 +130,7 @@ const PayLensAnalyzer: React.FC = () => {
       <div style={enhancedStyles.userHeader}>
         <div style={enhancedStyles.userInfo}>
           <span style={enhancedStyles.userName}>
-            {user?.name}
+            {user?.firstName} {user?.lastName}
           </span>
           <br />
           <span style={{ fontSize: '12px', color: '#666' }}>

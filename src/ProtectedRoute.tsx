@@ -105,6 +105,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         return null;
     }
 
+
     // User is authenticated, show a welcome screen with option to continue
     return (
         <div style={styles.container}>
@@ -116,7 +117,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
                     {user && (
                         <>
                             <div style={styles.userName as any}>
-                                {user.name}
+                                {user.firstName} {user.lastName}
                             </div>
                             <div style={styles.userEmail}>{user.email}</div>
                             <div style={{ fontSize: '12px', color: '#999', marginBottom: '20px' } as any}>

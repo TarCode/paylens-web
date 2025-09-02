@@ -3,6 +3,10 @@ import axios from 'axios';
 
 // TypeScript interfaces
 interface User {
+    firstName: ReactNode;
+    lastName: ReactNode;
+    role: ReactNode;
+    subscriptionTier: ReactNode;
     id: string;
     email: string;
     name: string;
