@@ -200,3 +200,40 @@ export const styles = {
         marginTop: '20px'
     }
 };
+
+// Enhanced styles for authenticated view
+export const enhancedStyles = {
+    ...styles,
+    userHeader: {
+        position: 'absolute',
+        top: '20px',
+        right: '20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        background: 'rgba(255, 255, 255, 0.95)',
+        padding: '10px 20px',
+        borderRadius: '25px',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+        zIndex: 1000
+    },
+    userInfo: {
+        fontSize: '14px',
+        color: '#333'
+    },
+    userName: {
+        fontWeight: '600',
+        color: '#333'
+    },
+    logoutButton: {
+        padding: '8px 16px',
+        background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
+        color: 'white',
+        border: 'none',
+        borderRadius: '20px',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'transform 0.2s ease'
+    }
+};
