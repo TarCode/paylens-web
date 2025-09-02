@@ -1,4 +1,73 @@
-export const analyzeData = async (data, processor = "generic", setResults, setLoading, setError, incrementUsage) => {
+// TypeScript interfaces
+interface FeeModel {
+    percentage: number;
+    fixed: number;
+    name: string;
+    strengths: string[];
+    weaknesses: string[];
+}
+
+interface TransactionBreakdown {
+    count: number;
+    volume: number;
+    fees: number;
+}
+
+export interface AnalysisResults {
+    processor: string;
+    processorCode: string;
+    totalTransactions: number;
+    totalFees: number;
+    totalVolume: number;
+    failedTransactions: number;
+    failedCosts: number;
+    savings: number;
+    recommendations: (string | { text: string; priority: string; impact: string; })[];
+    transactionBreakdown: {
+        small: TransactionBreakdown;
+        medium: TransactionBreakdown;
+        large: TransactionBreakdown;
+    };
+    monthlyTrends: Record<string, any>;
+    averageTransaction: number;
+    effectiveRate: number;
+    benchmarkComparison: Record<string, any>;
+    riskFactors: string[];
+    optimizationOpportunities: string[];
+    score?: number;
+    grade?: string;
+    summary?: string;
+    keyFindings?: string[];
+    nextSteps?: Array<{
+        action: string;
+        timeframe: string;
+        impact: string;
+    }>;
+    failureRate?: number;
+    monthlySavings?: number;
+    annualSavings?: number;
+    marketPosition?: {
+        effectiveRateRanking: string;
+        failureRateRanking: string;
+        transactionSizeRanking: string;
+        overallScore: number;
+        grade?: string;
+    };
+}
+
+type SetResultsFunction = (results: AnalysisResults) => void;
+type SetLoadingFunction = (loading: boolean) => void;
+type SetErrorFunction = (error: string) => void;
+type IncrementUsageFunction = () => Promise<{ success: boolean; error?: string }>;
+
+export const analyzeData = async (
+    data: any[],
+    processor: string = "generic",
+    setResults: SetResultsFunction,
+    setLoading: SetLoadingFunction,
+    setError: SetErrorFunction,
+    incrementUsage: IncrementUsageFunction
+): Promise<void> => {
     // Increment usage count before analysis
     const usageResult = await incrementUsage();
     if (!usageResult.success) {
@@ -8,7 +77,7 @@ export const analyzeData = async (data, processor = "generic", setResults, setLo
     }
 
     // Enhanced fee structures with more accurate data
-    const feeModels = {
+    const feeModels: Record<string, FeeModel> = {
         payfast: {
             percentage: 0.029,
             fixed: 1.50,
@@ -70,7 +139,7 @@ export const analyzeData = async (data, processor = "generic", setResults, setLo
     const model = feeModels[processor.toLowerCase()] || feeModels["generic"];
 
     // Initialize comprehensive analysis object
-    const analysis = {
+    const analysis: AnalysisResults = {
         processor: model.name,
         processorCode: processor,
         totalTransactions: data.length,
@@ -181,21 +250,23 @@ export const analyzeData = async (data, processor = "generic", setResults, setLo
     setLoading(false);
 };
 
-const generateEnhancedRecommendations = (analysis, currentModel, data) => {
+const generateEnhancedRecommendations = (analysis: AnalysisResults, currentModel: FeeModel, data: any[]) => {
     const { recommendations, optimizationOpportunities, riskFactors } = analysis;
 
     // 1. Failure Rate Analysis
-    if (analysis.failureRate > 5) {
-        riskFactors.push(`High failure rate of ${analysis.failureRate.toFixed(1)}% - industry average is 2-3%`);
-        recommendations.push(
-            `URGENT: Investigate payment failures. ${analysis.failedTransactions} failed transactions cost you R${analysis.failedCosts.toFixed(2)} in fees alone.`
-        );
-        analysis.savings += analysis.failedCosts * 0.7; // Potential recovery
-    } else if (analysis.failureRate > 2) {
-        recommendations.push(
-            `Monitor failure rate (${analysis.failureRate.toFixed(1)}%). Consider adding retry logic or improving validation.`
-        );
-        analysis.savings += analysis.failedCosts * 0.3;
+    if (analysis && analysis.failureRate) {
+        if (analysis.failureRate > 5) {
+            riskFactors.push(`High failure rate of ${analysis.failureRate.toFixed(1)}% - industry average is 2-3%`);
+            recommendations.push(
+                `URGENT: Investigate payment failures. ${analysis.failedTransactions} failed transactions cost you R${analysis.failedCosts.toFixed(2)} in fees alone.`
+            );
+            analysis.savings += analysis.failedCosts * 0.7; // Potential recovery
+        } else if (analysis.failureRate > 2) {
+            recommendations.push(
+                `Monitor failure rate (${analysis.failureRate.toFixed(1)}%). Consider adding retry logic or improving validation.`
+            );
+            analysis.savings += analysis.failedCosts * 0.3;
+        }
     }
 
     // 2. Transaction Size Optimization
@@ -286,8 +357,10 @@ const generateEnhancedRecommendations = (analysis, currentModel, data) => {
     }
 
     // 9. Risk Assessment
-    if (analysis.totalVolume > 50000 && analysis.failureRate > 3) {
-        riskFactors.push("High volume with elevated failure rate increases business risk");
+    if (analysis && analysis.failureRate) {
+        if (analysis.totalVolume > 50000 && analysis.failureRate > 3) {
+            riskFactors.push("High volume with elevated failure rate increases business risk");
+        }
     }
 
     if (analysis.effectiveRate > 4) {
@@ -310,11 +383,13 @@ const generateEnhancedRecommendations = (analysis, currentModel, data) => {
     }
 
     // Add priority scoring to recommendations
-    analysis.recommendations = recommendations.map((rec, index) => ({
-        text: rec,
-        priority: index < 3 ? 'high' : index < 6 ? 'medium' : 'low',
-        impact: index < 3 ? 'High' : index < 6 ? 'Medium' : 'Low'
-    }));
+    if (analysis && analysis.recommendations) {
+        analysis.recommendations = recommendations.map((rec, index) => ({
+            text: rec.toString(),
+            priority: index < 3 ? 'high' : index < 6 ? 'medium' : 'low',
+            impact: index < 3 ? 'High' : index < 6 ? 'Medium' : 'Low'
+        }));
+    }
 
     // Calculate realistic total savings (cap at reasonable levels)
     analysis.savings = Math.min(analysis.savings, analysis.totalFees * 0.4);
@@ -328,15 +403,17 @@ const generateEnhancedRecommendations = (analysis, currentModel, data) => {
     analysis.marketPosition = analyzeMarketPosition(analysis, currentModel);
 };
 
-const generateNextSteps = (analysis, currentModel) => {
+const generateNextSteps = (analysis: AnalysisResults, currentModel: FeeModel) => {
     const steps = [];
 
-    if (analysis.failureRate > 3) {
-        steps.push({
-            action: "Audit failed transactions",
-            timeframe: "This week",
-            impact: "Immediate cost reduction"
-        });
+    if (analysis && analysis.failureRate) {
+        if (analysis.failureRate > 3) {
+            steps.push({
+                action: "Audit failed transactions",
+                timeframe: "This week",
+                impact: "Immediate cost reduction"
+            });
+        }
     }
 
     if (analysis.totalTransactions > 200) {
@@ -376,18 +453,24 @@ const generateNextSteps = (analysis, currentModel) => {
     return steps;
 };
 
-const analyzeMarketPosition = (analysis, currentModel) => {
+const analyzeMarketPosition = (analysis: AnalysisResults, currentModel: FeeModel) => {
     const industryBenchmarks = {
         averageEffectiveRate: 2.8,
         averageFailureRate: 2.5,
         averageTransactionSize: 350
     };
 
-    const position = {
+    const position: {
+        effectiveRateRanking: string;
+        failureRateRanking: string;
+        transactionSizeRanking: string;
+        overallScore: number;
+        grade?: string;
+    } = {
         effectiveRateRanking: analysis.effectiveRate < industryBenchmarks.averageEffectiveRate ? 'Good' :
             analysis.effectiveRate < 3.5 ? 'Average' : 'Poor',
-        failureRateRanking: analysis.failureRate < industryBenchmarks.averageFailureRate ? 'Good' :
-            analysis.failureRate < 4 ? 'Average' : 'Poor',
+        failureRateRanking: analysis && analysis.failureRate && analysis.failureRate < industryBenchmarks.averageFailureRate ? 'Good' :
+            analysis && analysis.failureRate && analysis.failureRate < 4 ? 'Average' : 'Poor',
         transactionSizeRanking: analysis.averageTransaction > industryBenchmarks.averageTransactionSize ? 'Good' :
             analysis.averageTransaction > 200 ? 'Average' : 'Poor',
         overallScore: 0

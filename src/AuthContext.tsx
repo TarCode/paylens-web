@@ -1,15 +1,48 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 
+// TypeScript interfaces
+interface User {
+    id: string;
+    email: string;
+    name: string;
+    picture?: string;
+    usageCount?: number;
+    maxUsage?: number;
+    isPremium?: boolean;
+}
+
+interface AuthTokens {
+    accessToken: string;
+    refreshToken: string;
+}
+
+interface AuthContextType {
+    user: User | null;
+    loading: boolean;
+    tokens: AuthTokens | null;
+    error: string | null;
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    loginWithGoogle: (credential: string) => Promise<{ success: boolean; isNewUser?: boolean; error?: string }>;
+    register: (userData: { email: string; password: string; name: string }) => Promise<{ success: boolean; error?: string }>;
+    logout: () => void;
+    refreshToken: () => Promise<{ success: boolean }>;
+    isAuthenticated: () => boolean;
+    getProfile: () => Promise<{ success: boolean; user?: User }>;
+    clearError: () => void;
+    incrementUsage: () => Promise<{ success: boolean; usageCount?: number; monthlyLimit?: number; error?: string }>;
+    getUsageData: () => Promise<{ success: boolean; data?: any; error?: string }>;
+}
+
 // Create the Auth Context
-const AuthContext = createContext();
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Auth Provider component
-export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [tokens, setTokens] = useState(null);
-    const [error, setError] = useState(null);
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [tokens, setTokens] = useState<AuthTokens | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     // API base URL - adjust this to match your backend
     const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
@@ -59,7 +92,7 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     // Google OAuth login with JWT
-    const loginWithGoogle = async (credential) => {
+    const loginWithGoogle = async (credential: string): Promise<{ success: boolean; isNewUser?: boolean; error?: string }> => {
         try {
             setLoading(true);
             setError(null);
@@ -87,9 +120,16 @@ export const AuthProvider = ({ children }) => {
             } else {
                 throw new Error(response.data.error?.message || 'Login failed');
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Google login error:', error);
-            const errorMessage = error.response?.data?.error?.message || error.message || 'Login failed';
+            let errorMessage = 'Login failed';
+            if (typeof error === 'object' && error !== null) {
+                if ('response' in error && typeof (error as any).response === 'object' && (error as any).response !== null) {
+                    errorMessage = (error as any).response?.data?.error?.message || errorMessage;
+                } else if ('message' in error && typeof (error as any).message === 'string') {
+                    errorMessage = (error as any).message;
+                }
+            }
             setError(errorMessage);
             return {
                 success: false,
@@ -101,7 +141,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     // Traditional email/password login
-    const login = async (email, password) => {
+    const login = async (email: string, password: string) => {
         try {
             setLoading(true);
             setError(null);
@@ -126,9 +166,16 @@ export const AuthProvider = ({ children }) => {
             } else {
                 throw new Error(response.data.error?.message || 'Login failed');
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Login error:', error);
-            const errorMessage = error.response?.data?.error?.message || error.message || 'Login failed';
+            let errorMessage = 'Login failed';
+            if (typeof error === 'object' && error !== null) {
+                if ('response' in error && typeof (error as any).response === 'object' && (error as any).response !== null) {
+                    errorMessage = (error as any).response?.data?.error?.message || errorMessage;
+                } else if ('message' in error && typeof (error as any).message === 'string') {
+                    errorMessage = (error as any).message;
+                }
+            }
             setError(errorMessage);
             return {
                 success: false,
@@ -140,7 +187,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     // Register new user
-    const register = async (userData) => {
+    const register = async (userData: { email: string; password: string; name: string }) => {
         try {
             setLoading(true);
             setError(null);
@@ -162,9 +209,16 @@ export const AuthProvider = ({ children }) => {
             } else {
                 throw new Error(response.data.error?.message || 'Registration failed');
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Registration error:', error);
-            const errorMessage = error.response?.data?.error?.message || error.message || 'Registration failed';
+            let errorMessage = 'Registration failed';
+            if (typeof error === 'object' && error !== null) {
+                if ('response' in error && typeof (error as any).response === 'object' && (error as any).response !== null) {
+                    errorMessage = (error as any).response?.data?.error?.message || errorMessage;
+                } else if ('message' in error && typeof (error as any).message === 'string') {
+                    errorMessage = (error as any).message;
+                }
+            }
             setError(errorMessage);
             return {
                 success: false,
@@ -176,7 +230,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     // Logout
-    const logout = () => {
+    const logout = (): void => {
         setUser(null);
         setTokens(null);
         localStorage.removeItem('auth_tokens');
@@ -218,7 +272,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     // Check if user is authenticated
-    const isAuthenticated = () => {
+    const isAuthenticated = (): boolean => {
         return user !== null && tokens !== null;
     };
 
@@ -237,8 +291,11 @@ export const AuthProvider = ({ children }) => {
             }
         } catch (error) {
             console.error('Get profile error:', error);
-            if (error.response?.status === 401) {
-                logout();
+            if (typeof error === 'object' && error !== null && 'response' in error) {
+                // @ts-expect-error: error is unknown, but we expect .response from axios
+                if (error.response?.status === 401) {
+                    logout();
+                }
             }
             return { success: false };
         }
@@ -273,12 +330,27 @@ export const AuthProvider = ({ children }) => {
             }
         } catch (error) {
             console.error('Increment usage error:', error);
-            if (error.response?.status === 401) {
-                logout();
+            if (typeof error === 'object' && error !== null && 'response' in error) {
+                // @ts-expect-error: error is unknown, but we expect .response from axios
+                if (error.response?.status === 401) {
+                    logout();
+                }
+            }
+            let errorMessage = 'An unknown error occurred';
+            if (typeof error === 'object' && error !== null) {
+                // @ts-expect-error: error is unknown, but we expect .response from axios
+                if (error.response?.data?.error?.message) {
+                    // @ts-expect-error: error is unknown, but we expect .response from axios
+                    errorMessage = error.response.data.error.message;
+                    // @ts-expect-error: error is unknown, but we expect .message
+                } else if (error.message) {
+                    // @ts-expect-error: error is unknown, but we expect .message
+                    errorMessage = error.message;
+                }
             }
             return {
                 success: false,
-                error: error.response?.data?.error?.message || error.message
+                error: errorMessage
             };
         }
     };
@@ -298,15 +370,30 @@ export const AuthProvider = ({ children }) => {
             }
         } catch (error) {
             console.error('Get usage data error:', error);
-            if (error.response?.status === 401) {
-                logout();
+            if (typeof error === 'object' && error !== null && 'response' in error) {
+                // @ts-expect-error: error is unknown, but we expect .response from axios
+                if (error.response?.status === 401) {
+                    logout();
+                }
+            }
+            let errorMessage = 'An unknown error occurred';
+            if (typeof error === 'object' && error !== null) {
+                // @ts-expect-error: error is unknown, but we expect .response from axios
+                if (error.response?.data?.error?.message) {
+                    // @ts-expect-error: error is unknown, but we expect .response from axios
+                    errorMessage = error.response.data.error.message;
+                    // @ts-expect-error: error is unknown, but we expect .message
+                } else if (error.message) {
+                    // @ts-expect-error: error is unknown, but we expect .message
+                    errorMessage = error.message;
+                }
             }
             return {
                 success: false,
-                error: error.response?.data?.error?.message || error.message
+                error: errorMessage
             };
         }
-    };
+    }
 
     const value = {
         user,
@@ -333,7 +420,7 @@ export const AuthProvider = ({ children }) => {
 };
 
 // Custom hook to use auth context
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
     if (!context) {
         throw new Error('useAuth must be used within an AuthProvider');

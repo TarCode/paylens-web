@@ -1,42 +1,42 @@
 import React, { useState, useCallback } from 'react';
 import Papa from 'papaparse';
-import { styles, enhancedStyles } from './styles';
+import { styles, enhancedStyles, enhancedResultStyles } from './styles';
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
 import useUsage from './hooks/useUsage';
 import { generatePDFReport } from './utils/generate-report';
-import { analyzeData } from './utils/analyze-data';
+import { analyzeData, type AnalysisResults } from './utils/analyze-data';
 
 // PayLens Analyzer with Authentication
-const PayLensAnalyzer = () => {
+const PayLensAnalyzer: React.FC = () => {
   const { isAuthenticated, loading: authLoading, user, logout } = useAuth();
   const { incrementUsage } = useUsage();
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState(null);
-  const [error, setError] = useState('');
-  const [dragOver, setDragOver] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview'); // New state for tabs
+  const [loading, setLoading] = useState<boolean>(false);
+  const [results, setResults] = useState<AnalysisResults | null>(null);
+  const [error, setError] = useState<string>('');
+  const [dragOver, setDragOver] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('overview'); // New state for tabs
 
   // File handling functions - must be called before any conditional returns
-  const handleDragOver = useCallback((e) => {
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragOver(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDragLeave = useCallback((e) => {
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragOver(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleFileInput = (e) => {
-    if (e.target.files.length > 0) {
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
       handleFile(e.target.files[0]);
     }
   };
 
-  const handleFile = (file) => {
+  const handleFile = (file: File) => {
     if (!file.name.toLowerCase().endsWith('.csv')) {
       setError('Please upload a CSV file');
       return;
@@ -46,22 +46,22 @@ const PayLensAnalyzer = () => {
     setLoading(true);
     setResults(null);
 
-    Papa.parse(file, {
+    Papa.parse<File>(file as any, {
       header: true,
       skipEmptyLines: true,
-      complete: function (parseResults) {
+      complete: function (parseResults: Papa.ParseResult<any>) {
         setTimeout(async () => {
           await analyzeData(parseResults.data, "generic", setResults, setLoading, setError, incrementUsage);
         }, 2000);
       },
-      error: function (parseError) {
+      error: function (error: Error, file: File) {
         setLoading(false);
-        setError('Error reading CSV file: ' + parseError.message);
+        setError('Error reading CSV file: ' + error.message);
       }
     });
   };
 
-  const handleDrop = useCallback((e) => {
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragOver(false);
     const files = e.dataTransfer.files;
@@ -116,156 +116,12 @@ const PayLensAnalyzer = () => {
     return <Login />;
   }
 
-  const resetAnalysis = () => {
+  const resetAnalysis = (): void => {
     setResults(null);
     setError('');
     setActiveTab('overview');
-    const fileInput = document.getElementById('fileInput');
+    const fileInput = document.getElementById('fileInput') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
-  };
-
-  // Enhanced styles for new components
-  const enhancedResultStyles = {
-    tabContainer: {
-      display: 'flex',
-      borderBottom: '2px solid #e5e7eb',
-      marginBottom: '24px',
-      gap: '8px'
-    },
-    tab: {
-      padding: '12px 20px',
-      background: 'transparent',
-      border: 'none',
-      borderBottom: '2px solid transparent',
-      cursor: 'pointer',
-      fontSize: '14px',
-      fontWeight: '500',
-      color: '#6b7280',
-      transition: 'all 0.2s ease'
-    },
-    activeTab: {
-      color: '#2563eb',
-      borderBottomColor: '#2563eb'
-    },
-    scoreCard: {
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      color: 'white',
-      borderRadius: '12px',
-      padding: '24px',
-      textAlign: 'center',
-      marginBottom: '24px'
-    },
-    scoreGrade: {
-      fontSize: '48px',
-      fontWeight: 'bold',
-      marginBottom: '8px'
-    },
-    scoreText: {
-      fontSize: '18px',
-      opacity: 0.9
-    },
-    breakdownGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-      gap: '16px',
-      marginBottom: '24px'
-    },
-    breakdownCard: {
-      background: '#f8fafc',
-      border: '1px solid #e2e8f0',
-      borderRadius: '8px',
-      padding: '16px'
-    },
-    breakdownTitle: {
-      fontSize: '12px',
-      fontWeight: '600',
-      color: '#64748b',
-      marginBottom: '8px',
-      textTransform: 'uppercase'
-    },
-    breakdownValue: {
-      fontSize: '18px',
-      fontWeight: 'bold',
-      color: '#1e293b',
-      marginBottom: '4px'
-    },
-    breakdownSubtext: {
-      fontSize: '12px',
-      color: '#64748b'
-    },
-    comparisonTable: {
-      width: '100%',
-      borderCollapse: 'collapse',
-      marginBottom: '24px'
-    },
-    tableHeader: {
-      background: '#f1f5f9',
-      fontWeight: '600',
-      padding: '12px',
-      textAlign: 'left',
-      borderBottom: '2px solid #e2e8f0'
-    },
-    tableCell: {
-      padding: '12px',
-      borderBottom: '1px solid #e2e8f0'
-    },
-    savingsPositive: {
-      color: '#059669',
-      fontWeight: '600'
-    },
-    savingsNegative: {
-      color: '#dc2626',
-      fontWeight: '600'
-    },
-    priorityBadge: {
-      padding: '4px 8px',
-      borderRadius: '12px',
-      fontSize: '11px',
-      fontWeight: '600',
-      textTransform: 'uppercase'
-    },
-    priorityHigh: {
-      background: '#fef2f2',
-      color: '#dc2626'
-    },
-    priorityMedium: {
-      background: '#fffbeb',
-      color: '#d97706'
-    },
-    priorityLow: {
-      background: '#f0fdf4',
-      color: '#059669'
-    },
-    nextStepItem: {
-      background: 'white',
-      border: '1px solid #e5e7eb',
-      borderRadius: '8px',
-      padding: '16px',
-      marginBottom: '12px'
-    },
-    nextStepHeader: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '8px'
-    },
-    nextStepAction: {
-      fontSize: '14px',
-      fontWeight: '600',
-      color: '#1f2937'
-    },
-    nextStepTimeframe: {
-      fontSize: '12px',
-      color: '#6b7280',
-      background: '#f3f4f6',
-      padding: '2px 8px',
-      borderRadius: '12px'
-    },
-    nextStepImpact: {
-      fontSize: '13px',
-      color: '#059669',
-      fontWeight: '500'
-    }
   };
 
   return (
@@ -274,18 +130,22 @@ const PayLensAnalyzer = () => {
       <div style={enhancedStyles.userHeader}>
         <div style={enhancedStyles.userInfo}>
           <span style={enhancedStyles.userName}>
-            {user?.firstName} {user?.lastName}
+            {user?.name}
           </span>
           <br />
           <span style={{ fontSize: '12px', color: '#666' }}>
-            {user?.subscriptionTier} • {user?.usageCount || 0} / {user?.monthlyLimit === -1 ? '∞' : (user?.monthlyLimit || 100)} uses
+            {user?.isPremium ? 'Premium' : 'Free'} • {user?.usageCount || 0} / {user?.maxUsage === -1 ? '∞' : (user?.maxUsage || 100)} uses
           </span>
         </div>
         <button
           style={enhancedStyles.logoutButton}
           onClick={logout}
-          onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
-          onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
+          onMouseOver={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+          }}
+          onMouseOut={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+          }}
         >
           Logout
         </button>
@@ -326,7 +186,12 @@ const PayLensAnalyzer = () => {
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                onClick={() => document.getElementById('fileInput').click()}
+                onClick={() => {
+                  const fileInput = document.getElementById('fileInput');
+                  if (fileInput) {
+                    fileInput.click();
+                  }
+                }}
               >
                 <div style={styles.uploadIcon}>📊</div>
                 <h3 style={styles.uploadTitle}>Drop your transaction CSV here</h3>
@@ -362,16 +227,16 @@ const PayLensAnalyzer = () => {
             <div>
               {/* Market Position Score */}
               {results.marketPosition && (
-                <div style={enhancedResultStyles.scoreCard}>
-                  <div style={enhancedResultStyles.scoreGrade}>{results.marketPosition.grade}</div>
-                  <div style={enhancedResultStyles.scoreText}>
+                <div style={enhancedResultStyles.scoreCard as any}>
+                  <div style={enhancedResultStyles.scoreGrade as any}>{results.marketPosition.grade}</div>
+                  <div style={enhancedResultStyles.scoreText as any}>
                     Payment Optimization Score: {results.marketPosition.overallScore}/100
                   </div>
                 </div>
               )}
 
               {/* Tab Navigation */}
-              <div style={enhancedResultStyles.tabContainer}>
+              <div style={enhancedResultStyles.tabContainer as any}>
                 {['overview', 'breakdown', 'comparison', 'recommendations', 'next-steps'].map(tab => (
                   <button
                     key={tab}
@@ -456,37 +321,37 @@ const PayLensAnalyzer = () => {
                 <div>
                   <h2 style={styles.resultsTitle}>📊 Transaction Breakdown</h2>
 
-                  <div style={enhancedResultStyles.breakdownGrid}>
-                    <div style={enhancedResultStyles.breakdownCard}>
-                      <div style={enhancedResultStyles.breakdownTitle}>Small Transactions (&lt; R100)</div>
-                      <div style={enhancedResultStyles.breakdownValue}>
+                  <div style={enhancedResultStyles.breakdownGrid as any}>
+                    <div style={enhancedResultStyles.breakdownCard as any}>
+                      <div style={enhancedResultStyles.breakdownTitle as any}>Small Transactions (&lt; R100)</div>
+                      <div style={enhancedResultStyles.breakdownValue as any}>
                         {results.transactionBreakdown.small.count}
                       </div>
-                      <div style={enhancedResultStyles.breakdownSubtext}>
+                      <div style={enhancedResultStyles.breakdownSubtext as any}>
                         R {results.transactionBreakdown.small.volume.toFixed(2)} volume
                         <br />R {results.transactionBreakdown.small.fees.toFixed(2)} fees
                         <br />{((results.transactionBreakdown.small.fees / results.transactionBreakdown.small.volume) * 100).toFixed(2)}% effective rate
                       </div>
                     </div>
 
-                    <div style={enhancedResultStyles.breakdownCard}>
-                      <div style={enhancedResultStyles.breakdownTitle}>Medium Transactions (R100-R1000)</div>
-                      <div style={enhancedResultStyles.breakdownValue}>
+                    <div style={enhancedResultStyles.breakdownCard as any}>
+                      <div style={enhancedResultStyles.breakdownTitle as any}>Medium Transactions (R100-R1000)</div>
+                      <div style={enhancedResultStyles.breakdownValue as any}>
                         {results.transactionBreakdown.medium.count}
                       </div>
-                      <div style={enhancedResultStyles.breakdownSubtext}>
+                      <div style={enhancedResultStyles.breakdownSubtext as any}>
                         R {results.transactionBreakdown.medium.volume.toFixed(2)} volume
                         <br />R {results.transactionBreakdown.medium.fees.toFixed(2)} fees
                         <br />{((results.transactionBreakdown.medium.fees / results.transactionBreakdown.medium.volume) * 100).toFixed(2)}% effective rate
                       </div>
                     </div>
 
-                    <div style={enhancedResultStyles.breakdownCard}>
-                      <div style={enhancedResultStyles.breakdownTitle}>Large Transactions (&gt; R1000)</div>
-                      <div style={enhancedResultStyles.breakdownValue}>
+                    <div style={enhancedResultStyles.breakdownCard as any}>
+                      <div style={enhancedResultStyles.breakdownTitle as any}>Large Transactions (&gt; R1000)</div>
+                      <div style={enhancedResultStyles.breakdownValue as any}>
                         {results.transactionBreakdown.large.count}
                       </div>
-                      <div style={enhancedResultStyles.breakdownSubtext}>
+                      <div style={enhancedResultStyles.breakdownSubtext as any}>
                         R {results.transactionBreakdown.large.volume.toFixed(2)} volume
                         <br />R {results.transactionBreakdown.large.fees.toFixed(2)} fees
                         <br />{((results.transactionBreakdown.large.fees / results.transactionBreakdown.large.volume) * 100).toFixed(2)}% effective rate
@@ -516,28 +381,28 @@ const PayLensAnalyzer = () => {
                 <div>
                   <h2 style={styles.resultsTitle}>🏆 Processor Comparison</h2>
 
-                  <table style={enhancedResultStyles.comparisonTable}>
+                  <table style={enhancedResultStyles.comparisonTable as any}>
                     <thead>
                       <tr>
-                        <th style={enhancedResultStyles.tableHeader}>Payment Processor</th>
-                        <th style={enhancedResultStyles.tableHeader}>Estimated Fees</th>
-                        <th style={enhancedResultStyles.tableHeader}>vs Current</th>
-                        <th style={enhancedResultStyles.tableHeader}>Annual Impact</th>
+                        <th style={enhancedResultStyles.tableHeader as any}>Payment Processor</th>
+                        <th style={enhancedResultStyles.tableHeader as any}>Estimated Fees</th>
+                        <th style={enhancedResultStyles.tableHeader as any}>vs Current</th>
+                        <th style={enhancedResultStyles.tableHeader as any}>Annual Impact</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr style={{ background: '#e0f2fe' }}>
-                        <td style={enhancedResultStyles.tableCell}><strong>{results.processor} (Current)</strong></td>
-                        <td style={enhancedResultStyles.tableCell}><strong>R {results.totalFees.toFixed(2)}</strong></td>
-                        <td style={enhancedResultStyles.tableCell}>-</td>
-                        <td style={enhancedResultStyles.tableCell}>-</td>
+                        <td style={enhancedResultStyles.tableCell as any}><strong>{results.processor} (Current)</strong></td>
+                        <td style={enhancedResultStyles.tableCell as any}><strong>R {results.totalFees.toFixed(2)}</strong></td>
+                        <td style={enhancedResultStyles.tableCell as any}>-</td>
+                        <td style={enhancedResultStyles.tableCell as any}>-</td>
                       </tr>
                       {Object.entries(results.benchmarkComparison).map(([processor, comparison]) => (
                         <tr key={processor}>
-                          <td style={enhancedResultStyles.tableCell}>{processor}</td>
-                          <td style={enhancedResultStyles.tableCell}>R {comparison.totalFees.toFixed(2)}</td>
+                          <td style={enhancedResultStyles.tableCell as any}>{processor}</td>
+                          <td style={enhancedResultStyles.tableCell as any}>R {comparison.totalFees.toFixed(2)}</td>
                           <td style={{
-                            ...enhancedResultStyles.tableCell,
+                            ...enhancedResultStyles.tableCell as any,
                             ...(comparison.savings > 0 ? enhancedResultStyles.savingsPositive : enhancedResultStyles.savingsNegative)
                           }}>
                             {comparison.savings > 0 ? '+' : ''}R {comparison.savings.toFixed(2)}
@@ -608,12 +473,12 @@ const PayLensAnalyzer = () => {
                   <h2 style={styles.resultsTitle}>📋 Next Steps</h2>
 
                   {results.nextSteps.map((step, index) => (
-                    <div key={index} style={enhancedResultStyles.nextStepItem}>
-                      <div style={enhancedResultStyles.nextStepHeader}>
-                        <div style={enhancedResultStyles.nextStepAction}>{step.action}</div>
-                        <div style={enhancedResultStyles.nextStepTimeframe}>{step.timeframe}</div>
+                    <div key={index} style={enhancedResultStyles.nextStepItem as any}>
+                      <div style={enhancedResultStyles.nextStepHeader as any}>
+                        <div style={enhancedResultStyles.nextStepAction as any}>{step.action}</div>
+                        <div style={enhancedResultStyles.nextStepTimeframe as any}>{step.timeframe}</div>
                       </div>
-                      <div style={enhancedResultStyles.nextStepImpact}>{step.impact}</div>
+                      <div style={enhancedResultStyles.nextStepImpact as any}>{step.impact}</div>
                     </div>
                   ))}
                 </div>
@@ -623,8 +488,8 @@ const PayLensAnalyzer = () => {
                 <button
                   onClick={() => generatePDFReport(results)}
                   style={styles.button}
-                  onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
-                  onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
+                  onMouseOver={(e: React.MouseEvent<HTMLButtonElement>) => (e.target as HTMLButtonElement).style.transform = 'translateY(-2px)'}
+                  onMouseOut={(e: React.MouseEvent<HTMLButtonElement>) => (e.target as HTMLButtonElement).style.transform = 'translateY(0)'}
                 >
                   📄 Download Report (PDF)
                 </button>
@@ -632,8 +497,8 @@ const PayLensAnalyzer = () => {
                 <button
                   onClick={resetAnalysis}
                   style={{ ...styles.button, ...styles.buttonSecondary }}
-                  onMouseOver={(e) => e.target.style.backgroundColor = '#f9fafb'}
-                  onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+                  onMouseOver={(e: React.MouseEvent<HTMLButtonElement>) => (e.target as HTMLButtonElement).style.backgroundColor = '#f9fafb'}
+                  onMouseOut={(e: React.MouseEvent<HTMLButtonElement>) => (e.target as HTMLButtonElement).style.backgroundColor = 'white'}
                 >
                   Analyze Another File
                 </button>
@@ -651,7 +516,7 @@ const PayLensAnalyzer = () => {
 };
 
 // Main App component with authentication provider
-const App = () => {
+const App: React.FC = () => {
   return (
     <AuthProvider>
       <PayLensAnalyzer />

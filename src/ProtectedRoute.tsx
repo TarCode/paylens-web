@@ -1,7 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 
-const ProtectedRoute = ({ children }) => {
+interface ProtectedRouteProps {
+    children: ReactNode;
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     const { isAuthenticated, loading, user, logout } = useAuth();
 
     const styles = {
@@ -80,7 +84,7 @@ const ProtectedRoute = ({ children }) => {
     if (loading) {
         return (
             <div style={styles.container}>
-                <div style={styles.card}>
+                <div style={styles.card as any}>
                     <div style={styles.spinner}></div>
                     <p>Loading...</p>
                     <style>
@@ -104,19 +108,19 @@ const ProtectedRoute = ({ children }) => {
     // User is authenticated, show a welcome screen with option to continue
     return (
         <div style={styles.container}>
-            <div style={styles.card}>
+            <div style={styles.card as any}>
                 <div style={styles.userInfo}>
                     <div style={styles.welcome}>Welcome to PayLens!</div>
                     <div style={styles.subtitle}>You're successfully authenticated</div>
 
                     {user && (
                         <>
-                            <div style={styles.userName}>
-                                {user.firstName} {user.lastName}
+                            <div style={styles.userName as any}>
+                                {user.name}
                             </div>
                             <div style={styles.userEmail}>{user.email}</div>
-                            <div style={{ fontSize: '12px', color: '#999', marginBottom: '20px' }}>
-                                Role: {user.role} | Tier: {user.subscriptionTier}
+                            <div style={{ fontSize: '12px', color: '#999', marginBottom: '20px' } as any}>
+                                Tier: {user.isPremium ? 'Premium' : 'Free'}
                             </div>
                         </>
                     )}
@@ -124,9 +128,9 @@ const ProtectedRoute = ({ children }) => {
 
                 <div>
                     <button
-                        style={{ ...styles.button, ...styles.continueButton }}
-                        onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
-                        onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
+                        style={{ ...styles.button, ...styles.continueButton } as any}
+                        onMouseOver={(e) => ((e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)')}
+                        onMouseOut={(e) => ((e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)')}
                         onClick={() => {
                             // This will be handled by the parent component to show the main app
                             window.location.reload();
@@ -136,9 +140,9 @@ const ProtectedRoute = ({ children }) => {
                     </button>
 
                     <button
-                        style={{ ...styles.button, ...styles.logoutButton }}
-                        onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
-                        onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
+                        style={{ ...styles.button, ...styles.logoutButton } as any}
+                        onMouseOver={(e) => (e.target as HTMLElement).style.transform = 'translateY(-2px)'}
+                        onMouseOut={(e) => (e.target as HTMLElement).style.transform = 'translateY(0)'}
                         onClick={logout}
                     >
                         Logout

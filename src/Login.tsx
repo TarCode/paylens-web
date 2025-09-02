@@ -1,7 +1,43 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
 import { useAuth } from './AuthContext';
 
+// TypeScript interfaces
+interface FormData {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    companyName: string;
+}
+
+interface FormErrors {
+    email?: string;
+    password?: string;
+    firstName?: string;
+    lastName?: string;
+    companyName?: string;
+    general?: string;
+}
+
+interface GoogleCredentialResponse {
+    credential: string;
+}
+
 // Add TypeScript declarations for Google Identity Services
+declare global {
+    interface Window {
+        google: {
+            accounts: {
+                id: {
+                    initialize: (config: any) => void;
+                    renderButton: (element: HTMLElement, options: any) => void;
+                    prompt: () => void;
+                };
+            };
+        };
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.google = window.google || {};
     window.google.accounts = window.google.accounts || {};
@@ -19,20 +55,20 @@ if (typeof window !== 'undefined') {
     }
 }
 
-const Login = () => {
+const Login: React.FC = () => {
     const { login, loginWithGoogle, register, loading, error, clearError } = useAuth();
-    const [isLogin, setIsLogin] = useState(true);
-    const [formData, setFormData] = useState({
+    const [isLogin, setIsLogin] = useState<boolean>(true);
+    const [formData, setFormData] = useState<FormData>({
         email: '',
         password: '',
         firstName: '',
         lastName: '',
         companyName: ''
     });
-    const [errors, setErrors] = useState({});
-    const [success, setSuccess] = useState('');
-    const [googleLoaded, setGoogleLoaded] = useState(false);
-    const [googleError, setGoogleError] = useState('');
+    const [errors, setErrors] = useState<FormErrors>({});
+    const [success, setSuccess] = useState<string>('');
+    const [googleLoaded, setGoogleLoaded] = useState<boolean>(false);
+    const [googleError, setGoogleError] = useState<string>('');
 
 
 
@@ -41,7 +77,7 @@ const Login = () => {
 
 
 
-    const handleGoogleCredentialResponse = useCallback(async (response) => {
+    const handleGoogleCredentialResponse = useCallback(async (response: GoogleCredentialResponse) => {
         setErrors({});
         setSuccess('');
         clearError();
@@ -64,14 +100,14 @@ const Login = () => {
     }, [loginWithGoogle, clearError]);
 
     // Validation functions
-    const validateEmail = (email) => {
+    const validateEmail = (email: string) => {
         if (!email.trim()) return 'Email is required';
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) return 'Please enter a valid email address';
         return '';
     };
 
-    const validatePassword = (password) => {
+    const validatePassword = (password: string) => {
         if (!password) return 'Password is required';
         if (password.length < 8) return 'Password must be at least 8 characters long';
         if (!/(?=.*[a-z])/.test(password)) return 'Password must contain at least one lowercase letter';
@@ -81,19 +117,19 @@ const Login = () => {
         return '';
     };
 
-    const validateName = (name, fieldName) => {
+    const validateName = (name: string, fieldName: string) => {
         if (!name.trim()) return `${fieldName} is required`;
         if (name.trim().length < 2) return `${fieldName} must be at least 2 characters long`;
         if (name.trim().length > 100) return `${fieldName} must be less than 100 characters long`;
         return '';
     };
 
-    const validateCompanyName = (companyName) => {
+    const validateCompanyName = (companyName: string) => {
         if (companyName && companyName.length > 255) return 'Company name must be less than 255 characters';
         return '';
     };
 
-    const handleInputChange = (e) => {
+    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData({
             ...formData,
@@ -101,10 +137,10 @@ const Login = () => {
         });
 
         // Clear field-specific error when user starts typing
-        if (errors[name]) {
+        if (errors[name as keyof FormErrors]) {
             setErrors({
                 ...errors,
-                [name]: ''
+                [name as keyof FormErrors]: ''
             });
         }
 
@@ -113,7 +149,7 @@ const Login = () => {
     };
 
     const validateForm = () => {
-        const newErrors = {};
+        const newErrors: FormErrors = {};
 
         // Email validation
         const emailError = validateEmail(formData.email);
@@ -139,7 +175,7 @@ const Login = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setErrors({});
         setSuccess('');
@@ -158,7 +194,11 @@ const Login = () => {
             }
         } else {
             // Registration
-            const result = await register(formData);
+            const result = await register({
+                email: formData.email,
+                password: formData.password,
+                name: `${formData.firstName} ${formData.lastName}`.trim()
+            });
             if (!result.success) {
                 // The error is now handled by AuthContext, but we can still set local error for consistency
                 setErrors({ general: result.error });
@@ -303,7 +343,7 @@ const Login = () => {
             maxWidth: '400px'
         },
         header: {
-            textAlign: 'center',
+            textAlign: 'center' as any,
             marginBottom: '30px'
         },
         logo: {
@@ -442,10 +482,10 @@ const Login = () => {
                 {googleError && <div style={{ ...styles.error, background: '#fff3cd', color: '#856404', borderColor: '#ffeaa7' }}>{googleError}</div>}
                 {success && <div style={styles.success}>{success}</div>}
 
-                <form onSubmit={handleSubmit} style={styles.form}>
+                <form onSubmit={handleSubmit} style={styles.form as any}>
                     {!isLogin && (
                         <>
-                            <div style={styles.inputGroup}>
+                            <div style={styles.inputGroup as any}>
                                 <label style={styles.label}>First Name *</label>
                                 <input
                                     type="text"
@@ -462,7 +502,7 @@ const Login = () => {
                                 {errors.firstName && <div style={styles.fieldError}>{errors.firstName}</div>}
                             </div>
 
-                            <div style={styles.inputGroup}>
+                            <div style={styles.inputGroup as any}>
                                 <label style={styles.label}>Last Name *</label>
                                 <input
                                     type="text"
@@ -479,7 +519,7 @@ const Login = () => {
                                 {errors.lastName && <div style={styles.fieldError}>{errors.lastName}</div>}
                             </div>
 
-                            <div style={styles.inputGroup}>
+                            <div style={styles.inputGroup as any}>
                                 <label style={styles.label}>Company Name (Optional)</label>
                                 <input
                                     type="text"
@@ -497,7 +537,7 @@ const Login = () => {
                         </>
                     )}
 
-                    <div style={styles.inputGroup}>
+                    <div style={styles.inputGroup as any}>
                         <label style={styles.label}>Email Address</label>
                         <input
                             type="email"
@@ -514,7 +554,7 @@ const Login = () => {
                         {errors.email && <div style={styles.fieldError}>{errors.email}</div>}
                     </div>
 
-                    <div style={styles.inputGroup}>
+                    <div style={styles.inputGroup as any}>
                         <label style={styles.label}>Password</label>
                         <input
                             type="password"
@@ -527,24 +567,24 @@ const Login = () => {
                             }}
                             required
                             placeholder="Enter your password"
-                            minLength="8"
+                            minLength={8}
                         />
                         {errors.password && <div style={styles.fieldError}>{errors.password}</div>}
                     </div>
 
                     <button
                         type="submit"
-                        style={styles.button}
+                        style={styles.button as any}
                         disabled={loading}
                         onMouseOver={(e) => {
                             if (!loading) {
-                                e.target.style.transform = 'translateY(-2px)';
-                                e.target.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.3)';
+                                (e.target as HTMLElement).style.transform = 'translateY(-2px)';
+                                (e.target as HTMLElement).style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.3)';
                             }
                         }}
                         onMouseOut={(e) => {
-                            e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = 'none';
+                            (e.target as HTMLElement).style.transform = 'translateY(0)';
+                            (e.target as HTMLElement).style.boxShadow = 'none';
                         }}
                     >
                         {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
@@ -599,9 +639,9 @@ const Login = () => {
                     />
                 )}
 
-                <div style={styles.toggle}>
+                <div style={styles.toggle as any}>
                     {isLogin ? "Don't have an account? " : "Already have an account? "}
-                    <span style={styles.toggleLink} onClick={toggleMode}>
+                    <span style={styles.toggleLink as any} onClick={toggleMode}>
                         {isLogin ? 'Create one here' : 'Sign in here'}
                     </span>
                 </div>
