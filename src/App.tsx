@@ -3,6 +3,7 @@ import Papa from 'papaparse';
 import { styles, enhancedStyles, enhancedResultStyles } from './styles';
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
+import LandingPage from './LandingPage';
 import useUsage from './hooks/useUsage';
 import { generatePDFReport } from './utils/generate-report';
 import { analyzeData, type AnalysisResults } from './utils/analyze-data';
@@ -16,6 +17,16 @@ const PayLensAnalyzer: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [dragOver, setDragOver] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('overview'); // New state for tabs
+  const [currentView, setCurrentView] = useState<'landing' | 'login' | 'main'>('landing'); // View state management
+
+  // Navigation functions
+  const handleGetStarted = () => {
+    setCurrentView('login');
+  };
+
+  const handleBackToLanding = () => {
+    setCurrentView('landing');
+  };
 
   // File handling functions - must be called before any conditional returns
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -111,9 +122,19 @@ const PayLensAnalyzer: React.FC = () => {
     );
   }
 
-  // Show login if not authenticated
-  if (!isAuthenticated()) {
-    return <Login />;
+  // Show landing page if not authenticated and on landing view
+  if (!isAuthenticated() && currentView === 'landing') {
+    return <LandingPage onGetStarted={handleGetStarted} />;
+  }
+
+  // Show login if not authenticated and on login view
+  if (!isAuthenticated() && currentView === 'login') {
+    return <Login onBackToLanding={handleBackToLanding} />;
+  }
+
+  // Show main app if authenticated
+  if (isAuthenticated()) {
+    setCurrentView('main');
   }
 
   const resetAnalysis = (): void => {

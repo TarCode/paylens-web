@@ -55,7 +55,11 @@ if (typeof window !== 'undefined') {
     }
 }
 
-const Login: React.FC = () => {
+interface LoginProps {
+    onBackToLanding?: () => void;
+}
+
+const Login: React.FC<LoginProps> = ({ onBackToLanding }) => {
     const { login, loginWithGoogle, register, loading, error, clearError } = useAuth();
     const [isLogin, setIsLogin] = useState<boolean>(true);
     const [formData, setFormData] = useState<FormData>({
@@ -344,7 +348,23 @@ const Login: React.FC = () => {
         },
         header: {
             textAlign: 'center' as any,
-            marginBottom: '30px'
+            marginBottom: '30px',
+            position: 'relative' as any
+        },
+        backButton: {
+            position: 'absolute' as any,
+            left: '0',
+            top: '0',
+            background: 'none',
+            border: 'none',
+            color: '#667eea',
+            cursor: 'pointer',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 0',
+            transition: 'color 0.3s ease'
         },
         logo: {
             width: '60px',
@@ -471,6 +491,20 @@ const Login: React.FC = () => {
         <div style={styles.container}>
             <div style={styles.card}>
                 <div style={styles.header}>
+                    {onBackToLanding && (
+                        <button
+                            style={styles.backButton}
+                            onClick={onBackToLanding}
+                            onMouseOver={(e) => {
+                                (e.target as HTMLButtonElement).style.color = '#5a67d8';
+                            }}
+                            onMouseOut={(e) => {
+                                (e.target as HTMLButtonElement).style.color = '#667eea';
+                            }}
+                        >
+                            ← Back to Home
+                        </button>
+                    )}
                     <img src="/logo.png" alt="PayLens" style={styles.logo} />
                     <h1 style={styles.title}>PayLens</h1>
                     <p style={styles.subtitle}>
